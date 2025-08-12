@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  node-1:
+    build: .
+    container_name: node-1
+    environment:
+      - NODE_ID=1
+      - PORT=5001
+      - ALL_NODES=node-1:5001,node-2:5002,node-3:5003
+    networks:
+      - distributed-system
+      -
+  node-2:
+    build: .
+    container_name: node-2
+    environment:
+      - NODE_ID=2
+      - PORT=5002
+      - ALL_NODES=node-1:5001,node-2:5002,node-3:5003
+    networks:
+      - distributed-system
+
+  node-3:
+    build: .
+    container_name: node-3
+    environment:
+      - NODE_ID=3
+      - PORT=5003
+      - ALL_NODES=node-1:5001,node-2:5002,node-3:5003
+    networks:
+      - distributed-system
+
+networks:
+  distributed-system:
