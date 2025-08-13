@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package resources;
+
+message StatusRequest{}
+
+message StatusResponse{
+  double cpu_percent_usage = 1;
+  double memory_percent_usage = 2;
+  double uptime_seconds = 3;
+}
+
+service ResourceMonitor{
+  rpc GetStatus(StatusRequest) returns (StatusResponse) {}
+}

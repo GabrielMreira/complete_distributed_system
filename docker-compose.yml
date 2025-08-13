@@ -7,7 +7,9 @@ services:
     environment:
       - NODE_ID=1
       - PORT=5001
+      - GRPC_PORT=6001
       - ALL_NODES=node-1:5001,node-2:5002,node-3:5003
+      - ALL_GRPC_NODES=node-1:6001,node-2:6002,node-3:6003
     networks:
       - distributed-system
       -
@@ -17,7 +19,9 @@ services:
     environment:
       - NODE_ID=2
       - PORT=5002
+      - GRPC_PORT=6002
       - ALL_NODES=node-1:5001,node-2:5002,node-3:5003
+      - ALL_GRPC_NODES=node-1:6001,node-2:6002,node-3:6003
     networks:
       - distributed-system
 
@@ -27,7 +31,9 @@ services:
     environment:
       - NODE_ID=3
       - PORT=5003
+      - GRPC_PORT=6003
       - ALL_NODES=node-1:5001,node-2:5002,node-3:5003
+      - ALL_GRPC_NODES=node-1:6001,node-2:6002,node-3:6003
     networks:
       - distributed-system
 

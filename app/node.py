@@ -3,12 +3,20 @@ import socket
 import time
 import threading
 
+import grpc
+from concurrent import futures
 import psutil
+
+from generated import resources_pb2_grpc
+from generated import resources_pb2
 
 NODE_ID = int(os.getenv('NODE_ID', '0'))
 PORT = int(os.getenv('PORT', '5000'))
+GRPC_PORT = int(os.getenv('GRPC_PORT', '6000'))
 ALL_NODES_STR = os.getenv('ALL_NODES', '')
 ALL_NODES = {int(addr.split(':')[0].split('-')[1]): (addr.split(':')[0], int(addr.split(':')[1])) for addr in ALL_NODES_STR.split(',')}
+ALL_GRPC_NODES_STR = os.getenv('ALL_GRPC_NODES', '')
+ALL_GRPC_NODES = {int(addr.split(':')[0].split('-')[1]): addr for addr in ALL_GRPC_NODES_STR.split(',')}
 
 print(f"NODE {NODE_ID} STARTED")
 print(f"ID: {NODE_ID} - PORT: {PORT}")
@@ -36,6 +44,42 @@ def start_server():
         print(f"{NODE_ID} - MESSAGE RECEIVED FROM {addr}: {data.decode()}")
         conn.close()
 
+class ResourceMonitorService(resources_pb2_grpc.ResourceMonitorServicer):
+    def GetStatus(self, request, context):
+        print(f'NODE {NODE_ID} - GET STATUS GRPC REQUEST RECEIVED')
+        status = get_system_status()
+        return resources_pb2.StatusResponse(
+            cpu_percent_usage = status['cpu_percent_usage'],
+            memory_percent_usage = status['memory_percent_usage'],
+            uptime_seconds = status['uptime_seconds']
+        )
+
+def start_grpc_server():
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    resources_pb2_grpc.add_ResourceMonitorServicer_to_server(ResourceMonitorService(), server)
+    server.add_insecure_port(f'[::]:{GRPC_PORT}')
+    server.start()
+    print(f'NODE {NODE_ID} LISTENING GRPC ON PORT {GRPC_PORT}')
+    server.wait_for_termination()
+
+
+def get_node_status_grpc(target_node_id):
+    target_address = ALL_GRPC_NODES.get(target_node_id)
+    if not target_address:
+        print(f'INVALID TARGET: {target_node_id}')
+        return
+
+    try:
+        with grpc.insecure_channel(target_address) as channel:
+            stub = resources_pb2_grpc.ResourceMonitorStub(channel)
+            request = resources_pb2.StatusRequest()
+            response = stub.GetStatus(request, timeout=2)
+            return response
+    except grpc.RpcError as e:
+        print(f'NODE {NODE_ID} ERRO CALLING {target_node_id}: {str(e)}')
+        return None
+
+
 def send_message(target_node_id, message):
     target_host, target_port = ALL_NODES[target_node_id]
 
@@ -52,15 +96,28 @@ def send_message(target_node_id, message):
         client_socket.close()
 
 if __name__ == "__main__":
-    server_threading = threading.Thread(target=start_server(), daemon=True)
-    server_threading.start()
+    server_thread = threading.Thread(target=start_server, daemon=True)
+    server_thread.start()
 
-    time.sleep(5)
+    grpc_server_thread = threading.Thread(target=start_grpc_server, daemon=True)
+    grpc_server_thread.start()
+
+    time.sleep(10)
 
     if NODE_ID == 1:
-        print('Testing')
-        send_message(2, 'Test from 1')
+        print("\nTESTING COLLECTING RECOURSES")
+        for node_id in range(1, 4):
+            if node_id != NODE_ID:
+                print(f"REQUESTING STATUS FROM-{node_id}...")
+                status = get_node_status_grpc(node_id)
+                if status:
+                    print(f" STATUS RECEIVED FROM -{node_id}: "
+                          f"CPU: {status.cpu_usage_percent:.2f}%, "
+                          f"Memory: {status.memory_usage_percent:.2f}%, "
+                          f"Uptime: {status.uptime_seconds:.0f}s")
 
-    while True:
-        status = get_system_status()
-        time.sleep(10)
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print(f"\nNODE-{NODE_ID} DOWN.")
