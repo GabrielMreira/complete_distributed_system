@@ -12,7 +12,7 @@ services:
       - ALL_GRPC_NODES=node-1:6001,node-2:6002,node-3:6003
     networks:
       - distributed-system
-      -
+
   node-2:
     build: .
     container_name: node-2
