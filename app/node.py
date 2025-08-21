@@ -132,7 +132,7 @@ elif GROUP_ID == 'B':
         ns = None
         while not ns:
             try:
-                ns = Pyro5.api.locate_ns()
+                ns = Pyro5.api.locate_ns(host="g-b-node-1")
                 print(f"{MY_NODE_NAME} - NAME SERVER LOCATED", flush=True)
             except Pyro5.errors.NamingError:
                 print(f"{MY_NODE_NAME} - WAITING NAME SERVER BE ON", flush=True)
